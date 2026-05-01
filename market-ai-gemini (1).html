@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Market AI — Powered by Gemini</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:      #0f1117;
+    --bg2:     #1a1d27;
+    --bg3:     #22263a;
+    --border:  rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text:    #f0f2f8;
+    --text2:   #9aa3b8;
+    --text3:   #5c647a;
+    --accent:  #4285f4;   /* Google Blue */
+    --green:   #3ecf8e;
+    --red:     #f76f6f;
+    --amber:   #f5a623;
+    --oil:     #e8a44a;
+    --radius:  10px;
+    --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.6; min-height: 100vh; }
+
+  /* ── Setup ── */
+  #setup-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+  .setup-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 2.5rem; max-width: 500px; width: 100%; }
+  .setup-logo { font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .setup-logo span { background: linear-gradient(90deg,#4285f4,#34a853,#fbbc05,#ea4335); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .setup-sub { color: var(--text2); font-size: 14px; margin-bottom: 2rem; line-height: 1.6; }
+  .setup-label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+  .setup-input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); padding: 12px 14px; color: var(--text); font-size: 14px; outline: none; transition: border 0.2s; }
+  .setup-input:focus { border-color: var(--accent); }
+  .setup-hint { font-size: 12px; color: var(--text3); margin-top: 8px; line-height: 1.6; }
+  .setup-hint a { color: var(--accent); text-decoration: none; }
+  .setup-model { display: flex; gap: 8px; margin: 1rem 0; flex-wrap: wrap; }
+  .model-btn { flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--text2); cursor: pointer; text-align: center; min-width: 130px; }
+  .model-btn.selected { border-color: var(--accent); color: var(--accent); background: rgba(66,133,244,0.08); }
+  .btn-launch { display: block; width: 100%; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 1.5rem; letter-spacing: 0.2px; }
+  .btn-launch:hover { opacity: 0.88; }
+  .setup-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
+  /* ── App shell ── */
+  #app-screen { display: none; }
+  header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; gap: 1rem; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .logo-g { background: linear-gradient(135deg,#4285f4,#34a853,#fbbc05,#ea4335); width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; }
+  .logo-tag { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: 2px; }
+  .header-search { flex: 1; max-width: 420px; }
+  .header-search input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 8px 16px; color: var(--text); font-size: 13px; outline: none; }
+  .header-search input:focus { border-color: var(--accent); }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; }
+  .btn-sm { background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 14px; font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-accent:hover { opacity: 0.85; color: #fff; }
+  nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; padding: 0 1.5rem; }
+  .nav-tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 13px 16px; font-size: 13px; color: var(--text2); cursor: pointer; white-space: nowrap; font-weight: 500; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+
+  /* ── Panels ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Cards ── */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .card + .card { margin-top: 1rem; }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+
+  /* ── Metrics ── */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--bg3); border-radius: var(--radius); padding: 14px; }
+  .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .metric-val { font-size: 20px; font-weight: 700; }
+  .metric-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 99px; font-weight: 600; }
+  .bull  { background: rgba(62,207,142,0.15); color: var(--green); }
+  .bear  { background: rgba(247,111,111,0.15); color: var(--red); }
+  .neu   { background: rgba(255,255,255,0.07); color: var(--text2); }
+  .mix   { background: rgba(245,166,35,0.15);  color: var(--amber); }
+  .b-hi  { background: rgba(247,111,111,0.15); color: var(--red); }
+  .b-md  { background: rgba(245,166,35,0.15);  color: var(--amber); }
+  .b-lo  { background: rgba(62,207,142,0.12);  color: var(--green); }
+  .b-oil { background: rgba(232,164,74,0.15);  color: var(--oil); }
+
+  /* ── News ── */
+  .news-item { padding: 13px 0; border-bottom: 1px solid var(--border); cursor: pointer; border-radius: 6px; }
+  .news-item:hover { background: var(--bg3); padding: 13px 10px; margin: 0 -10px; }
+  .news-headline { font-size: 14px; font-weight: 500; line-height: 1.5; margin-bottom: 5px; }
+  .news-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--text3); }
+
+  /* ── Ticker ── */
+  .ticker-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .up { color: var(--green); } .dn { color: var(--red); }
+
+  /* ── Calendar ── */
+  .cal-row { display: grid; grid-template-columns: 80px 52px 1fr 80px; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .cal-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ── Alerts ── */
+  .alert-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; background: var(--bg3); }
+  .alert-triggered { border-color: var(--red); }
+  .alert-clear     { border-color: var(--green); }
+
+  /* ── Filter buttons ── */
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .filter-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; color: var(--text2); cursor: pointer; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(66,133,244,0.07); }
+
+  /* ── Loading spinner ── */
+  .loading { color: var(--text3); font-size: 13px; padding: 1.5rem 0; display: none; align-items: center; gap: 10px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Oil accent ── */
+  .oil-accent { border-left: 3px solid var(--oil) !important; border-radius: 0 var(--radius) var(--radius) 0 !important; }
+
+  /* ── Briefing ── */
+  .brief-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 10px; margin: 1rem 0; }
+  .brief-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  .brief-card-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; }
+  .brief-card-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .brief-card-key  { font-size: 11px; color: var(--text3); margin-top: 5px; }
+  .three-col { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 10px; margin-top: 1rem; }
+  .three-col li { font-size: 13px; color: var(--text2); padding: 5px 0; border-bottom: 1px solid var(--border); list-style: none; }
+  .three-col li::before { content: '→ '; color: var(--accent); }
+
+  /* ── Detail panel ── */
+  #newsDetail { display: none; margin-top: 1rem; }
+
+  /* ── Grounding sources ── */
+  .sources { font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.8; }
+  .sources a { color: var(--accent); text-decoration: none; margin-right: 8px; }
+
+  /* ── Chart ── */
+  .chart-wrap { position: relative; width: 100%; height: 220px; margin-top: 1rem; }
+
+  /* ── Model pill ── */
+  .model-pill { font-size: 11px; background: rgba(66,133,244,0.1); color: var(--accent); border: 1px solid rgba(66,133,244,0.25); border-radius: 99px; padding: 2px 10px; }
+
+  .disclaimer { font-size: 11px; color: var(--text3); padding: 1rem 0; line-height: 1.6; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    header { padding: 0 1rem; gap: 8px; }
+    main { padding: 1rem; }
+    .cal-row { grid-template-columns: 65px 40px 1fr; }
+    .cal-row > *:last-child { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ SETUP SCREEN ═══════════════════════════════════════════════════════ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">Market <span>AI</span></div>
+    <p class="setup-sub">Your personal AI market intelligence dashboard, powered by Google Gemini with real-time Google Search grounding. Enter your Gemini API key to get started — stored locally in your browser only.</p>
+
+    <label class="setup-label">Gemini API Key</label>
+    <input class="setup-input" type="password" id="apiKeyInput" placeholder="AIza..." />
+    <div class="setup-hint">
+      Get your free key at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> &nbsp;·&nbsp;
+      Free tier: 15 requests/min &nbsp;·&nbsp; Key never leaves your browser.
+    </div>
+
+    <label class="setup-label" style="margin-top:1.25rem;">Select Gemini model</label>
+    <div class="setup-model">
+      <button class="model-btn selected" onclick="selectModel('gemini-2.0-flash',this)">
+        <div style="font-weight:600;color:var(--text);">Gemini 2.0 Flash</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Fast · Free tier</div>
+      </button>
+      <button class="model-btn" onclick="selectModel('gemini-1.5-flash',this)">
+        <div style="font-weight:600;color:var(--text);">Gemini 1.5 Flash</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Stable · Free tier</div>
+      </button>
+      <button class="model-btn" onclick="selectModel('gemini-1.5-pro',this)">
+        <div style="font-weight:600;color:var(--text);">Gemini 1.5 Pro</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Most capable</div>
+      </button>
+    </div>
+
+    <div class="setup-error" id="setupError">Key too short. Please paste your full Gemini API key.</div>
+    <button class="btn-launch" onclick="startApp()">Launch Market AI &rarr;</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ════════════════════════════════════════════════════════════ -->
+<div id="app-screen">
+  <header>
+    <div class="logo">
+      <div class="logo-g"></div>
+      Market AI
+      <span class="logo-tag" id="modelTag">gemini-2.0-flash</span>
+    </div>
+    <div class="header-search">
+      <input type="text" id="globalSearch" placeholder="Search any market, asset, ticker..." onkeydown="if(event.key==='Enter') globalSearch()" />
+    </div>
+    <div class="header-actions">
+      <button class="btn-sm btn-accent" onclick="switchTab('briefing')">&#9788; Daily briefing</button>
+      <button class="btn-sm" onclick="clearKey()" title="Change API key / model">&#9881;</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="nav-tab active"  onclick="switchTab('news')">&#128240; News feed</button>
+    <button class="nav-tab"         onclick="switchTab('oil')">&#128293; Oil market</button>
+    <button class="nav-tab"         onclick="switchTab('prices')">&#128200; Prices &amp; charts</button>
+    <button class="nav-tab"         onclick="switchTab('calendar')">&#128197; Economic calendar</button>
+    <button class="nav-tab"         onclick="switchTab('alerts')">&#128276; Alerts</button>
+    <button class="nav-tab"         onclick="switchTab('briefing')">&#9788; Daily briefing</button>
+  </nav>
+
+  <main>
+
+    <!-- NEWS FEED -->
+    <div id="panel-news" class="panel active">
+      <div class="filter-row">
+        <button class="filter-btn" onclick="loadNews('forex market latest')">Forex</button>
+        <button class="filter-btn" onclick="loadNews('US stock market today')">Stocks</button>
+        <button class="filter-btn" onclick="loadNews('Bitcoin Ethereum crypto today')">Crypto</button>
+        <button class="filter-btn" onclick="loadNews('crude oil Brent WTI OPEC today')">Oil &amp; energy</button>
+        <button class="filter-btn" onclick="loadNews('gold silver commodity market')">Commodities</button>
+        <button class="filter-btn" onclick="loadNews('Nvidia Apple Microsoft AI tech stocks')">AI tech</button>
+        <button class="filter-btn" onclick="loadNews('Bangladesh DSE stock market today')">Bangladesh DSE</button>
+      </div>
+      <div class="loading" id="newsLoading"><div class="spinner"></div>Fetching latest headlines via Google Search...</div>
+      <div class="card">
+        <div id="newsFeed"><p style="color:var(--text3);font-size:13px;">Select a sector above to load the latest headlines.</p></div>
+      </div>
+      <div id="newsDetail" class="card">
+        <button class="filter-btn" onclick="document.getElementById('newsDetail').style.display='none'" style="margin-bottom:12px;">&larr; Back</button>
+        <div id="newsDetailContent"></div>
+      </div>
+      <div class="disclaimer">AI-generated from Google Search grounding. For informational use only — not financial advice.</div>
+    </div>
+
+    <!-- OIL MARKET -->
+    <div id="panel-oil" class="panel">
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">Brent Crude</div><div class="metric-val" id="brentP">—</div><div class="metric-sub" id="brentC">tap "Full analysis"</div></div>
+        <div class="metric"><div class="metric-label">WTI Crude</div><div class="metric-val" id="wtiP">—</div><div class="metric-sub" id="wtiC">tap "Full analysis"</div></div>
+        <div class="metric"><div class="metric-label">Natural Gas</div><div class="metric-val" id="gasP">—</div><div class="metric-sub" id="gasC">tap "Full analysis"</div></div>
+        <div class="metric"><div class="metric-label">Oil sentiment</div><div class="metric-val" id="oilSent">—</div><div class="metric-sub" id="oilTrnd">tap "Full analysis"</div></div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn" onclick="loadOilFull()">&#9654; Full oil analysis</button>
+        <button class="filter-btn" onclick="loadOilHeadlines()">Latest oil headlines</button>
+        <button class="filter-btn" onclick="askFreeform('What is the current OPEC+ production stance and how is it affecting oil prices?')">OPEC+ update &#8599;</button>
+        <button class="filter-btn" onclick="askFreeform('What are the key geopolitical risks affecting oil prices right now?')">Geopolitical risks &#8599;</button>
+        <button class="filter-btn" onclick="askFreeform('Give me Brent and WTI oil trade setups with entry, stop loss, and take profit.')">Trade setups &#8599;</button>
+      </div>
+      <div class="loading" id="oilLoading"><div class="spinner"></div>Analyzing oil market via Google Search...</div>
+      <div id="oilContent"></div>
+      <div class="card" style="margin-top:1rem;">
+        <div class="card-title">Oil news feed</div>
+        <div class="loading" id="oilNewsLoading"><div class="spinner"></div></div>
+        <div id="oilNewsFeed"><p style="color:var(--text3);font-size:13px;">Click "Latest oil headlines" above.</p></div>
+      </div>
+    </div>
+
+    <!-- PRICES & CHARTS -->
+    <div id="panel-prices" class="panel">
+      <div class="filter-row">
+        <button class="filter-btn" onclick="loadPrices('EUR/USD GBP/USD USD/JPY AUD/USD USD/BDT forex rates today')">Forex</button>
+        <button class="filter-btn" onclick="loadPrices('Bitcoin BTC Ethereum ETH Solana SOL crypto price today')">Crypto</button>
+        <button class="filter-btn" onclick="loadPrices('S&P 500 Nasdaq Dow Jones stock index today')">Indices</button>
+        <button class="filter-btn" onclick="loadPrices('Brent crude WTI crude oil natural gas price today')">Oil &amp; gas</button>
+        <button class="filter-btn" onclick="loadPrices('gold silver copper platinum spot price today')">Commodities</button>
+      </div>
+      <div class="loading" id="pricesLoading"><div class="spinner"></div>Fetching live prices...</div>
+      <div class="card">
+        <div class="card-title" id="pricesLabel">Select a sector above</div>
+        <div id="tickerList"><p style="color:var(--text3);font-size:13px;">Select a sector to load live prices.</p></div>
+      </div>
+      <div class="card" style="margin-top:1rem;display:none;" id="chartCard">
+        <div class="card-title">% change today</div>
+        <div class="chart-wrap"><canvas id="priceChart" role="img" aria-label="Price percentage change bar chart"></canvas></div>
+      </div>
+      <div class="disclaimer">Prices fetched via Gemini Google Search grounding. Slight delay possible — verify on your broker before trading.</div>
+    </div>
+
+    <!-- ECONOMIC CALENDAR -->
+    <div id="panel-calendar" class="panel">
+      <div class="filter-row">
+        <button class="filter-btn" onclick="loadCal('today economic events')">Today</button>
+        <button class="filter-btn" onclick="loadCal('this week major economic events')">This week</button>
+        <button class="filter-btn" onclick="loadCal('USD Federal Reserve economic events')">USD events</button>
+        <button class="filter-btn" onclick="loadCal('EUR ECB economic events')">EUR events</button>
+        <button class="filter-btn" onclick="loadCal('EIA crude oil inventory OPEC meeting schedule')">Oil events</button>
+        <button class="filter-btn" onclick="loadCal('high impact NFP CPI GDP economic events')">High impact</button>
+      </div>
+      <div class="loading" id="calLoading"><div class="spinner"></div>Loading economic calendar via Google Search...</div>
+      <div class="card">
+        <div class="card-title" id="calLabel">Select a filter above</div>
+        <div id="calFeed"><p style="color:var(--text3);font-size:13px;">Select a filter above to load the calendar.</p></div>
+      </div>
+      <div style="margin-top:1rem;">
+        <button class="filter-btn" onclick="askFreeform('Which economic events this week will most impact oil, forex, and crypto markets? Give me a trading strategy for each key event.')">Get event-based trading strategy &#8599;</button>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div id="panel-alerts" class="panel">
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-title">Create new alert</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="alertAsset" placeholder="Asset e.g. Brent Crude, EUR/USD, Bitcoin" style="flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;" />
+          <select id="alertType" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;">
+            <option>Turns bearish</option><option>Turns bullish</option><option>High risk detected</option>
+            <option>Major news break</option><option>Volatility spike</option><option>OPEC decision</option>
+            <option>Supply disruption</option><option>Price breakout</option>
+          </select>
+          <button class="btn-sm btn-accent" onclick="addAlert()">+ Add alert</button>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text3);padding-top:4px;">Quick add:</span>
+          <button class="filter-btn" onclick="quickAlert('Brent Crude','Turns bearish')">Brent bearish</button>
+          <button class="filter-btn" onclick="quickAlert('WTI Crude','OPEC decision')">WTI OPEC</button>
+          <button class="filter-btn" onclick="quickAlert('EUR/USD','Volatility spike')">EUR/USD spike</button>
+          <button class="filter-btn" onclick="quickAlert('Bitcoin','Turns bullish')">BTC bullish</button>
+          <button class="filter-btn" onclick="quickAlert('Gold','Price breakout')">Gold breakout</button>
+          <button class="filter-btn" onclick="quickAlert('Natural Gas','Supply disruption')">Gas disruption</button>
+        </div>
+      </div>
+      <div class="card-title">Active alerts</div>
+      <div id="alertList"><p style="color:var(--text3);font-size:13px;">No alerts yet.</p></div>
+      <div style="margin-top:1rem;">
+        <button class="btn-sm btn-accent" onclick="checkAlerts()">&#9654; Run sentiment check on all alerts</button>
+        <div class="loading" id="alertLoading"><div class="spinner"></div>Checking alerts via Google Search...</div>
+        <div id="alertResults" style="margin-top:1rem;"></div>
+      </div>
+    </div>
+
+    <!-- DAILY BRIEFING -->
+    <div id="panel-briefing" class="panel">
+      <div class="filter-row">
+        <button class="filter-btn" onclick="runBriefing('full')">&#9654; Full market briefing</button>
+        <button class="filter-btn" onclick="runBriefing('oil')">&#128293; Oil-focused briefing</button>
+        <button class="filter-btn" onclick="runBriefing('forex')">Forex briefing</button>
+        <button class="filter-btn" onclick="runBriefing('crypto')">Crypto briefing</button>
+        <button class="filter-btn" onclick="runBriefing('bangladesh')">Bangladesh market</button>
+      </div>
+      <div class="loading" id="briefingLoading"><div class="spinner"></div>Generating briefing — searching Google for latest market data across all sectors...</div>
+      <div id="briefingContent"><p style="color:var(--text3);font-size:13px;">Click a briefing type above to generate today's report.</p></div>
+      <div class="disclaimer">AI-generated market briefing using Gemini + Google Search grounding. For personal informational use only. Not financial advice.</div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let API_KEY    = '';
+let MODEL      = 'gemini-2.0-flash';
+let alerts     = [];
+let chartInst  = null;
+
+// ── Setup ──────────────────────────────────────────────────────────────────
+function selectModel(m, btn) {
+  MODEL = m;
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function startApp() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (key.length < 10) {
+    document.getElementById('setupError').style.display = 'block';
+    return;
+  }
+  API_KEY = key;
+  localStorage.setItem('mkai_key',   key);
+  localStorage.setItem('mkai_model', MODEL);
+  document.getElementById('modelTag').textContent = MODEL;
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display   = 'block';
+}
+
+function clearKey() {
+  localStorage.removeItem('mkai_key');
+  localStorage.removeItem('mkai_model');
+  API_KEY = '';
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display   = 'none';
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const k = localStorage.getItem('mkai_key');
+  const m = localStorage.getItem('mkai_model');
+  if (k) {
+    API_KEY = k;
+    MODEL   = m || MODEL;
+    document.getElementById('apiKeyInput').value = k;
+    document.getElementById('modelTag').textContent = MODEL;
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display   = 'block';
+    // pre-select model button
+    document.querySelectorAll('.model-btn').forEach(b => {
+      if (b.textContent.includes(MODEL.includes('2.0') ? '2.0' : MODEL.includes('Pro') ? 'Pro' : '1.5 Flash')) b.classList.add('selected');
+      else b.classList.remove('selected');
+    });
+  }
+});
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  const tabs = ['news','oil','prices','calendar','alerts','briefing'];
+  const idx = tabs.indexOf(name);
+  if (idx >= 0) document.querySelectorAll('.nav-tab')[idx].classList.add('active');
+}
+
+// ── Gemini API call (with Google Search grounding) ─────────────────────────
+async function callGemini(prompt, loadingId, onDone) {
+  if (loadingId) {
+    const el = document.getElementById(loadingId);
+    el.style.display = 'flex';
+  }
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    tools: [{ google_search: {} }],   // Google Search grounding
+    generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
+  };
+  try {
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (loadingId) document.getElementById(loadingId).style.display = 'none';
+
+    if (data.error) { onDone(null, data.error.message); return; }
+
+    const raw  = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    const sources = (data.candidates?.[0]?.groundingMetadata?.groundingChunks || [])
+      .map(c => c.web).filter(Boolean);
+
+    onDone(raw.replace(/```json|```/g, '').trim(), null, sources);
+  } catch(e) {
+    if (loadingId) document.getElementById(loadingId).style.display = 'none';
+    onDone(null, e.message);
+  }
+}
+
+// ── Source chips ───────────────────────────────────────────────────────────
+function sourcesHTML(sources) {
+  if (!sources || !sources.length) return '';
+  const links = sources.slice(0,5).map(s =>
+    `<a href="${s.uri}" target="_blank">${s.title || new URL(s.uri).hostname}</a>`
+  ).join('');
+  return `<div class="sources">&#128279; Sources: ${links}</div>`;
+}
+
+// ── Global search ──────────────────────────────────────────────────────────
+function globalSearch() {
+  const q = document.getElementById('globalSearch').value.trim();
+  if (!q) return;
+  switchTab('news');
+  document.getElementById('newsFeed').innerHTML = '';
+  document.getElementById('newsDetail').style.display = 'none';
+  callGemini(
+    `Search Google for the very latest market news and analysis on: "${q}".
+Return ONLY a JSON array of 6 items (no markdown, no preamble):
+[{"headline":"...","source":"...","time":"e.g. 2 hours ago","sentiment":"Bullish"|"Bearish"|"Neutral","summary":"2 sentence analysis","url":"...","impact":"High"|"Medium"|"Low"}]`,
+    'newsLoading',
+    (raw, err, srcs) => renderNews(raw, err, srcs, q)
+  );
+}
+
+// ── Ask freeform ───────────────────────────────────────────────────────────
+function askFreeform(prompt) {
+  switchTab('news');
+  document.getElementById('newsFeed').innerHTML = '';
+  document.getElementById('newsDetail').style.display = 'none';
+  callGemini(
+    `Use Google Search to answer this market question thoroughly with up-to-date data: ${prompt}
+Write a clear, structured analysis with current numbers, key takeaways, and practical outlook. Be specific.`,
+    'newsLoading',
+    (raw, err, srcs) => {
+      document.getElementById('newsFeed').innerHTML =
+        `<div style="font-size:14px;color:var(--text);line-height:1.8;white-space:pre-wrap;">${(raw||err||'No response').replace(/[#*`]/g,'')}</div>` +
+        sourcesHTML(srcs);
+    }
+  );
+}
+
+// ── News feed ──────────────────────────────────────────────────────────────
+function loadNews(sector) {
+  document.getElementById('newsFeed').innerHTML = '';
+  document.getElementById('newsDetail').style.display = 'none';
+  callGemini(
+    `Use Google Search to find the 7 most important market news headlines right now for: ${sector}.
+Return ONLY a JSON array (no markdown, no preamble):
+[{"headline":"...","source":"...","time":"e.g. 1 hour ago","sentiment":"Bullish"|"Bearish"|"Neutral","summary":"2 sentences of market analysis","url":"...","impact":"High"|"Medium"|"Low"}]`,
+    'newsLoading',
+    (raw, err, srcs) => renderNews(raw, err, srcs, sector)
+  );
+}
+
+function renderNews(raw, err, srcs, sector) {
+  const feed = document.getElementById('newsFeed');
+  if (err || !raw) {
+    feed.innerHTML = `<p style="color:var(--red);font-size:13px;">Error: ${err||'No data'}. Check your API key and try again.</p>`;
+    return;
+  }
+  try {
+    const items = JSON.parse(raw);
+    const ts = new Date().toLocaleTimeString();
+    feed.innerHTML = `<div class="card-title">${sector.toUpperCase()} &mdash; updated ${ts} &nbsp;<span class="model-pill">${MODEL}</span></div>`;
+    items.forEach(item => {
+      const sc = item.sentiment==='Bullish'?'bull':item.sentiment==='Bearish'?'bear':'neu';
+      const ic = item.impact==='High'?'b-hi':item.impact==='Medium'?'b-md':'b-lo';
+      const isOil = /oil|opec|crude|brent|wti|petroleum|energy/i.test(item.headline + item.source);
+      feed.innerHTML += `<div class="news-item" onclick="openDetail(this)" data-item='${JSON.stringify(item).replace(/'/g,"&#39;")}'>
+        <div style="display:flex;gap:8px;justify-content:space-between;margin-bottom:5px;">
+          <div class="news-headline">${item.headline}</div>
+          <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;">
+            ${isOil ? '<span class="badge b-oil">Oil</span>' : ''}
+            <span class="badge ${sc}">${item.sentiment}</span>
+          </div>
+        </div>
+        <div class="news-meta">
+          <span>${item.source}</span>
+          <span>${item.time}</span>
+          <span class="badge ${ic}">${item.impact} impact</span>
+        </div>
+      </div>`;
+    });
+    feed.innerHTML += sourcesHTML(srcs);
+  } catch(e) {
+    feed.innerHTML = `<p style="font-size:13px;color:var(--text2);">${raw.substring(0,600)}</p>`;
+  }
+}
+
+function openDetail(el) {
+  const item = JSON.parse(el.getAttribute('data-item').replace(/&#39;/g,"'"));
+  const sc = item.sentiment==='Bullish'?'bull':item.sentiment==='Bearish'?'bear':'neu';
+  document.getElementById('newsDetailContent').innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">
+      <div style="flex:1;font-size:16px;font-weight:600;line-height:1.4;">${item.headline}</div>
+      <span class="badge ${sc}">${item.sentiment}</span>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">${item.source} &bull; ${item.time}</div>
+    <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:14px;">${item.summary}</p>
+    ${item.url && item.url !== 'N/A' ? `<a href="${item.url}" target="_blank" style="font-size:13px;color:var(--accent);text-decoration:none;">Read full article &rarr;</a>` : ''}
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="filter-btn" onclick="askFreeform('Deep dive analysis: ${item.headline.replace(/['"]/g,'')}. What does this mean for traders? Which assets are most affected?')">Deep dive &#8599;</button>
+      <button class="filter-btn" onclick="askFreeform('What trade opportunity does this news create: ${item.headline.replace(/['"]/g,'')}? Give entry, stop loss, take profit.')">Trade idea &#8599;</button>
+    </div>`;
+  document.getElementById('newsDetail').style.display = 'block';
+  document.getElementById('newsDetail').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Oil ────────────────────────────────────────────────────────────────────
+function loadOilFull() {
+  callGemini(
+    `Use Google Search to find the current oil market data right now.
+Return ONLY this exact JSON (no markdown):
+{"brent":{"price":"$XX.XX","change":"+X.XX%","dir":"up"|"down"},"wti":{"price":"$XX.XX","change":"+X.XX%","dir":"down"},"natgas":{"price":"$X.XX","change":"+X.XX%","dir":"up"},"sentiment":"Bullish","trend":"Uptrend|Downtrend|Sideways|Volatile","opec":"2 sentences on current OPEC+ stance and output levels","supply":"2 sentences on global supply demand balance","geo":"2 sentences on geopolitical factors","levels":"Key Brent and WTI support and resistance price levels","outlook":"3 sentence short-term price outlook"}`,
+    'oilLoading',
+    (raw, err, srcs) => {
+      if (!raw || err) { document.getElementById('oilContent').innerHTML = `<p style="color:var(--red);font-size:13px;">Error: ${err}</p>`; return; }
+      try {
+        const d = JSON.parse(raw);
+        const setM = (id, val, chg, dir) => {
+          document.getElementById(id+'P').textContent = val || '—';
+          const el = document.getElementById(id+'C');
+          el.textContent = chg || '';
+          el.style.color = dir==='up' ? 'var(--green)' : 'var(--red)';
+        };
+        setM('brent', d.brent?.price, d.brent?.change, d.brent?.dir);
+        setM('wti',   d.wti?.price,   d.wti?.change,   d.wti?.dir);
+        setM('gas',   d.natgas?.price, d.natgas?.change, d.natgas?.dir);
+        const sEl = document.getElementById('oilSent');
+        sEl.textContent = d.sentiment || '—';
+        sEl.style.color = d.sentiment==='Bullish'?'var(--green)':d.sentiment==='Bearish'?'var(--red)':'var(--amber)';
+        document.getElementById('oilTrnd').textContent = d.trend || '';
+        document.getElementById('oilContent').innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:1rem;">
+            <div class="card"><div class="card-title">OPEC+ status</div><p style="font-size:13px;color:var(--text2);line-height:1.6;">${d.opec}</p></div>
+            <div class="card"><div class="card-title">Supply &amp; demand</div><p style="font-size:13px;color:var(--text2);line-height:1.6;">${d.supply}</p></div>
+            <div class="card"><div class="card-title">Geopolitical factors</div><p style="font-size:13px;color:var(--text2);line-height:1.6;">${d.geo}</p></div>
+          </div>
+          <div class="card" style="margin-bottom:1rem;"><div class="card-title">Key price levels</div><p style="font-size:13px;color:var(--text2);line-height:1.6;">${d.levels}</p></div>
+          <div class="card oil-accent"><div class="card-title">Short-term outlook</div><p style="font-size:14px;color:var(--text);line-height:1.7;">${d.outlook}</p></div>
+          ${sourcesHTML(srcs)}`;
+      } catch(e) {
+        document.getElementById('oilContent').innerHTML = `<p style="font-size:13px;color:var(--text2);">${raw.substring(0,600)}</p>`;
+      }
+    }
+  );
+}
+
+function loadOilHeadlines() {
+  document.getElementById('oilNewsFeed').innerHTML = '';
+  callGemini(
+    `Use Google Search to find the 6 latest oil and energy market news headlines: Brent, WTI, OPEC, natural gas, energy sector.
+Return ONLY JSON array (no markdown):
+[{"headline":"...","source":"...","time":"...ago","sentiment":"Bullish"|"Bearish"|"Neutral","summary":"1 sentence","url":"...","impact":"High"|"Medium"|"Low"}]`,
+    'oilNewsLoading',
+    (raw, err, srcs) => {
+      try {
+        const items = JSON.parse(raw);
+        const feed = document.getElementById('oilNewsFeed');
+        feed.innerHTML = '';
+        items.forEach(item => {
+          const sc = item.sentiment==='Bullish'?'bull':item.sentiment==='Bearish'?'bear':'neu';
+          const ic = item.impact==='High'?'b-hi':item.impact==='Medium'?'b-md':'b-lo';
+          feed.innerHTML += `<div class="news-item" onclick="openDetail(this)" data-item='${JSON.stringify(item).replace(/'/g,"&#39;")}'>
+            <div style="display:flex;gap:8px;justify-content:space-between;margin-bottom:5px;">
+              <div class="news-headline">${item.headline}</div>
+              <span class="badge ${sc}">${item.sentiment}</span>
+            </div>
+            <div class="news-meta"><span>${item.source}</span><span>${item.time}</span><span class="badge ${ic}">${item.impact} impact</span></div>
+          </div>`;
+        });
+        feed.innerHTML += sourcesHTML(srcs);
+      } catch(e) {}
+    }
+  );
+}
+
+// ── Prices & Charts ────────────────────────────────────────────────────────
+function loadPrices(sector) {
+  document.getElementById('tickerList').innerHTML = '';
+  document.getElementById('chartCard').style.display = 'none';
+  callGemini(
+    `Use Google Search to find current live prices for ${sector}.
+Return ONLY a JSON array of 6-7 assets (no markdown):
+[{"name":"Full Name","symbol":"TICKER","price":"$XX.XX","change":"+1.23%","dir":"up"|"down","low":"XX.XX","high":"XX.XX"}]`,
+    'pricesLoading',
+    (raw, err, srcs) => {
+      if (!raw || err) return;
+      try {
+        const items = JSON.parse(raw);
+        document.getElementById('pricesLabel').textContent = sector.split(' ')[0].toUpperCase() + ' — live prices';
+        const list = document.getElementById('tickerList');
+        list.innerHTML = '';
+        items.forEach(it => {
+          list.innerHTML += `<div class="ticker-row">
+            <div><span style="font-weight:600;">${it.symbol}</span><span style="color:var(--text3);font-size:12px;margin-left:8px;">${it.name}</span></div>
+            <div style="text-align:right;">
+              <span style="font-weight:600;">${it.price}</span>
+              <span class="${it.dir==='up'?'up':'dn'}" style="margin-left:10px;font-size:12px;">${it.change}</span>
+              <div style="font-size:11px;color:var(--text3);">L: ${it.low||'—'} &nbsp; H: ${it.high||'—'}</div>
+            </div>
+          </div>`;
+        });
+        list.innerHTML += sourcesHTML(srcs);
+        renderChart(items);
+      } catch(e) {}
+    }
+  );
+}
+
+function renderChart(items) {
+  document.getElementById('chartCard').style.display = 'block';
+  const labels = items.map(i => i.symbol);
+  const vals = items.map(i => {
+    const n = parseFloat((i.change||'0').replace(/[+%,\s]/g,''));
+    return isNaN(n) ? 0 : n;
+  });
+  const colors = vals.map(v => v >= 0 ? '#3ecf8e' : '#f76f6f');
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  chartInst = new Chart(document.getElementById('priceChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 5, label: '% change' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => (ctx.raw>0?'+':'')+ctx.raw.toFixed(2)+'%' } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#9aa3b8', font:{size:11}, autoSkip: false } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#9aa3b8', font:{size:11}, callback: v => (v>0?'+':'')+v.toFixed(1)+'%' } }
+      }
+    }
+  });
+}
+
+// ── Economic calendar ──────────────────────────────────────────────────────
+function loadCal(filter) {
+  document.getElementById('calFeed').innerHTML = '';
+  callGemini(
+    `Use Google Search to find upcoming economic events and releases for: ${filter}.
+Also include any oil-related events like EIA inventory reports or OPEC meetings.
+Return ONLY a JSON array of 8-10 events (no markdown):
+[{"time":"08:30 EST","currency":"USD","event":"CPI m/m","impact":"High"|"Medium"|"Low","forecast":"0.3%","previous":"0.4%","actual":"Pending or result"}]`,
+    'calLoading',
+    (raw, err, srcs) => {
+      if (!raw || err) return;
+      try {
+        const events = JSON.parse(raw);
+        document.getElementById('calLabel').textContent = 'Economic calendar — ' + filter;
+        const feed = document.getElementById('calFeed');
+        feed.innerHTML = '';
+        events.forEach(ev => {
+          const ic = ev.impact==='High'?'b-hi':ev.impact==='Medium'?'b-md':'b-lo';
+          const isOil = /oil|eia|crude|opec|energy|petroleum/i.test(ev.event);
+          feed.innerHTML += `<div class="cal-row">
+            <span style="color:var(--text3);font-size:12px;">${ev.time}</span>
+            <span style="font-weight:700;font-size:12px;">${ev.currency}</span>
+            <div>
+              <div style="font-weight:500;">${ev.event} ${isOil?'<span class="badge b-oil" style="font-size:10px;">Oil</span>':''}</div>
+              <div class="cal-sub">Prev: ${ev.previous} &bull; Fcst: ${ev.forecast} &bull; Actual: ${ev.actual}</div>
+            </div>
+            <span class="badge ${ic}">${ev.impact}</span>
+          </div>`;
+        });
+        feed.innerHTML += sourcesHTML(srcs);
+      } catch(e) {}
+    }
+  );
+}
+
+// ── Alerts ─────────────────────────────────────────────────────────────────
+function quickAlert(asset, type) {
+  alerts.push({ id: Date.now(), asset, type, status: 'Watching', added: new Date().toLocaleTimeString() });
+  renderAlertList();
+}
+function addAlert() {
+  const asset = document.getElementById('alertAsset').value.trim();
+  const type  = document.getElementById('alertType').value;
+  if (!asset) return;
+  alerts.push({ id: Date.now(), asset, type, status: 'Watching', added: new Date().toLocaleTimeString() });
+  renderAlertList();
+  document.getElementById('alertAsset').value = '';
+}
+function removeAlert(id) { alerts = alerts.filter(a => a.id !== id); renderAlertList(); }
+function renderAlertList() {
+  const el = document.getElementById('alertList');
+  if (!alerts.length) { el.innerHTML = '<p style="color:var(--text3);font-size:13px;">No alerts set yet.</p>'; return; }
+  el.innerHTML = '';
+  alerts.forEach(a => {
+    const cls = a.status==='Triggered'?'alert-triggered':a.status==='Clear'?'alert-clear':'';
+    const sc  = a.status==='Triggered'?'bear':a.status==='Clear'?'bull':'neu';
+    el.innerHTML += `<div class="alert-item ${cls}">
+      <div style="flex:1;"><span style="font-weight:600;">${a.asset}</span><span style="color:var(--text3);font-size:12px;margin-left:8px;">${a.type}</span></div>
+      <span class="badge ${sc}" style="font-size:11px;">${a.status}</span>
+      <span style="font-size:11px;color:var(--text3);">${a.added}</span>
+      <button class="filter-btn" onclick="removeAlert(${a.id})" style="padding:4px 10px;font-size:11px;">Remove</button>
+    </div>`;
+  });
+}
+function checkAlerts() {
+  if (!alerts.length) { document.getElementById('alertResults').innerHTML = '<p style="color:var(--text3);font-size:13px;">Add alerts first.</p>'; return; }
+  const list = alerts.map(a => `${a.asset} (condition: ${a.type})`).join(', ');
+  callGemini(
+    `Use Google Search to check the current market status for these assets: ${list}.
+For each, determine if the alert condition is triggered based on real current data.
+Return ONLY a JSON array (no markdown):
+[{"asset":"...","alertType":"...","triggered":true|false,"currentSentiment":"Bullish"|"Bearish"|"Neutral","reason":"1-2 clear sentences explaining current status"}]`,
+    'alertLoading',
+    (raw, err, srcs) => {
+      try {
+        const results = JSON.parse(raw);
+        let html = '<div class="card-title" style="margin-bottom:10px;">Alert check results &nbsp;<span class="model-pill">' + MODEL + '</span></div>';
+        results.forEach(r => {
+          alerts.forEach(a => { if (a.asset === r.asset) a.status = r.triggered ? 'Triggered' : 'Clear'; });
+          html += `<div class="alert-item ${r.triggered?'alert-triggered':'alert-clear'}" style="flex-direction:column;align-items:flex-start;gap:6px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-weight:600;">${r.asset}</span>
+              <span class="badge ${r.triggered?'bear':'bull'}">${r.triggered?'TRIGGERED':'Clear'}</span>
+              <span class="badge neu" style="font-size:11px;">${r.currentSentiment}</span>
+            </div>
+            <p style="font-size:12px;color:var(--text2);margin:0;">${r.reason}</p>
+          </div>`;
+        });
+        document.getElementById('alertResults').innerHTML = html + sourcesHTML(srcs);
+        renderAlertList();
+      } catch(e) {}
+    }
+  );
+}
+
+// ── Daily briefing ─────────────────────────────────────────────────────────
+function runBriefing(type) {
+  document.getElementById('briefingContent').innerHTML = '';
+  const today = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const prompts = {
+    full:
+      `Today is ${today}. Use Google Search to generate a comprehensive daily market briefing covering:
+1) Global market overview and mood
+2) Oil market: Brent price, WTI price, OPEC+ status, EIA inventory, outlook
+3) Forex: EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/BDT with key levels
+4) Crypto: Bitcoin BTC, Ethereum ETH prices and sentiment
+5) Stock indices: S&P 500, Nasdaq 100, Dow Jones, DSE Bangladesh
+6) Commodities: Gold, Silver, Natural Gas
+7) Key economic events and data releases today
+8) Top 3 high-conviction trading opportunities (include oil)
+9) Top 3 key risks to watch`,
+    oil:
+      `Today is ${today}. Use Google Search for an oil-focused market briefing:
+Brent crude price and trend, WTI price, natural gas, OPEC+ latest decisions, EIA inventory report,
+supply disruptions, geopolitical risks (Middle East, Russia, Libya), demand outlook from China and US,
+energy stocks, and how oil prices affect USD strength and emerging market currencies like BDT.`,
+    forex:
+      `Today is ${today}. Use Google Search for a forex market briefing:
+USD index DXY, EUR/USD, GBP/USD, USD/JPY, AUD/USD, NZD/USD, USD/CAD, USD/BDT.
+Include: Federal Reserve / ECB / BOJ policy updates, today's economic data, technical levels, and outlook.`,
+    crypto:
+      `Today is ${today}. Use Google Search for a crypto market briefing:
+Bitcoin BTC, Ethereum ETH, BNB, SOL, XRP. Include: total market cap, dominance, Fear & Greed index,
+on-chain highlights, regulatory news, and near-term price outlook.`,
+    bangladesh:
+      `Today is ${today}. Use Google Search for a Bangladesh financial market briefing:
+DSE Dhaka Stock Exchange index, top gainers and losers, sector performance, BD Bank news,
+USD/BDT exchange rate, remittance inflows, Bangladesh Bank policy, inflation data, and economic outlook.`
+  };
+
+  callGemini(
+    prompts[type] + `\n\nReturn ONLY this JSON (no markdown, no preamble):
+{"date":"${today}","headline":"one-line overall mood","overallSentiment":"Bullish"|"Bearish"|"Mixed",
+"sections":[{"title":"...","summary":"2-3 sentences with specific numbers/prices","sentiment":"Bullish"|"Bearish"|"Neutral","keyLevel":"key price level or data to watch"}],
+"topOpportunities":["specific opportunity with asset name","...","..."],
+"keyRisks":["risk 1","risk 2","risk 3"],
+"economicEvents":["event name with time","...","..."]}`,
+    'briefingLoading',
+    (raw, err, srcs) => {
+      try {
+        const b = JSON.parse(raw);
+        const sc = b.overallSentiment==='Bullish'?'bull':b.overallSentiment==='Bearish'?'bear':'mix';
+        let html = `<div class="card" style="margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--text3);">${b.date}</span>
+            <span class="badge ${sc}">${b.overallSentiment}</span>
+            <span class="model-pill">${MODEL} + Google Search</span>
+          </div>
+          <p style="font-size:20px;font-weight:700;line-height:1.4;">${b.headline}</p>
+        </div>
+        <div class="brief-grid">`;
+        (b.sections || []).forEach(s => {
+          const sc2 = s.sentiment==='Bullish'?'bull':s.sentiment==='Bearish'?'bear':'neu';
+          const isOil = /oil|opec|crude|brent|wti|gas/i.test(s.title);
+          html += `<div class="brief-card ${isOil?'oil-accent':''}">
+            <div class="brief-card-title">
+              ${s.title} ${isOil?'<span class="badge b-oil" style="font-size:10px;">Oil</span>':''}
+              <span class="badge ${sc2}" style="font-size:10px;">${s.sentiment}</span>
+            </div>
+            <div class="brief-card-body">${s.summary}</div>
+            <div class="brief-card-key">Watch: ${s.keyLevel}</div>
+          </div>`;
+        });
+        html += `</div>
+        <div class="three-col">
+          <div class="card"><div class="card-title">&#127919; Top opportunities</div><ul>${(b.topOpportunities||[]).map(o=>`<li>${o}</li>`).join('')}</ul></div>
+          <div class="card"><div class="card-title">&#9888; Key risks</div><ul>${(b.keyRisks||[]).map(r=>`<li>${r}</li>`).join('')}</ul></div>
+          <div class="card"><div class="card-title">&#128197; Events today</div><ul>${(b.economicEvents||[]).map(e=>`<li>${e}</li>`).join('')}</ul></div>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="filter-btn" onclick="askFreeform('Give me specific oil trading setups for today with exact Brent and WTI entry prices, stop loss, and take profit targets.')">Oil trade setups &#8599;</button>
+          <button class="filter-btn" onclick="askFreeform('Give me specific forex trade setups for today: EUR/USD, GBP/USD, USD/JPY. Entry, stop loss, take profit.')">Forex setups &#8599;</button>
+          <button class="filter-btn" onclick="askFreeform('Give me specific crypto trade setups for Bitcoin and Ethereum today. Entry price, stop loss, take profit.')">Crypto setups &#8599;</button>
+        </div>` + sourcesHTML(srcs);
+        document.getElementById('briefingContent').innerHTML = html;
+      } catch(e) {
+        document.getElementById('briefingContent').innerHTML =
+          `<pre style="font-size:12px;color:var(--text2);white-space:pre-wrap;">${raw&&raw.substring(0,1000)}</pre>`;
+      }
+    }
+  );
+}
+
+renderAlertList();
+</script>
+</body>
+</html>
